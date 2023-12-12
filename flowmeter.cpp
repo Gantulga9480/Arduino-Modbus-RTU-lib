@@ -1,0 +1,212 @@
+#include "flowmeter.h"
+
+#define DEBUG
+#define FLOW_METER_ADDRESS_TOTAL_LITERS 0x0A
+#define FLOW_METER_ADDRESS_RESET        0x13
+
+union ieee754
+{
+  uint32_t i;
+  float f;
+};
+
+FlowMeter::FlowMeter(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, bool crc)
+{
+  ID = id;
+  _serial = serial;
+  _rx = rx;
+  _tx = tx;
+  _crc = crc;
+}
+
+FlowMeter::~FlowMeter()
+{
+  _serial->end();
+}
+
+void FlowMeter::begin(uint32_t baudrate)
+{
+  _serial->begin(9600, SERIAL_8N1, _rx, _tx);
+  delay(100);
+}
+
+bool FlowMeter::reset()
+{
+  if (write(FLOW_METER_ADDRESS_RESET, 99))
+  {
+    if (parse(0, 1) != FLOW_METER_ADDRESS_RESET) return false;
+    if (parse(2, 1) != 99) return false;
+    return true;
+  }
+  return false;
+}
+
+float FlowMeter::readTotalLiters()
+{
+  if (read(FLOW_METER_ADDRESS_TOTAL_LITERS, 2))
+  {
+    ieee754 x;
+    x.i = rx_buffer[1] | rx_buffer[0] << 8 | rx_buffer[3] << 16 | rx_buffer[2] << 24;
+    return x.f;
+  }
+  return -1.0f;
+}
+
+uint32_t FlowMeter::parse(uint8_t index, uint8_t size)
+{
+  uint32_t value = 0;
+  uint8_t i = 0;
+  for (; i < size; i++)
+  {
+      value |= (rx_buffer[i + index] << (8 * (size - (i + 1))));
+  }
+  return value;
+}
+
+void FlowMeter::init_transfer(uint8_t request_type, uint8_t address, uint8_t count)
+{
+  /* Clear TX buffer */
+  memset(tx_buffer, 0, MODBUS_REQUEST_READ_HOLDING);
+
+  /* Set slave ID and request type */
+  tx_buffer[0] = ID;
+  tx_buffer[1] = request_type; // Read or write
+  tx_buffer[2] = 0x00;         // Reserved always 0x00
+  tx_buffer[3] = address;      // Requested address to read/write
+  tx_buffer[4] = 0x00;         // Reserved always 0x00
+  tx_buffer[5] = count;        // Read/Write register count/data
+}
+
+uint8_t FlowMeter::read(uint8_t address, uint8_t read_count)
+{
+  /* Initialize TX buffer for read request */
+  init_transfer(MODBUS_REQUEST_READ_HOLDING, address, read_count);
+
+  /* Compute CRC16 code from current tx_buffer data */
+  CRC_CODE crc;
+  crc.word = CRC(tx_buffer, 6);
+
+  /* Place CRC16 code into tx_buffer */
+  tx_buffer[6] = crc.byte[1];
+  tx_buffer[7] = crc.byte[0];
+
+  /* Send request command to slave device over UART */
+  serial_write(tx_buffer, 8);
+
+  return listen(MODBUS_REQUEST_READ_HOLDING);
+}
+
+uint8_t FlowMeter::write(uint8_t address, uint8_t data)
+{
+  /* Initialize TX buffer for write request */
+  init_transfer(MODBUS_REQUEST_WRITE_SINGLE, address, data);
+
+  /* Compute CRC16 code from current tx_buffer data */
+  CRC_CODE crc;
+  crc.word = CRC(tx_buffer, 6);
+
+  /* Place CRC16 code into tx_buffer */
+  tx_buffer[6] = crc.byte[1];
+  tx_buffer[7] = crc.byte[0];
+
+  /* Send request command to slave device over UART */
+  serial_write(tx_buffer, 8);
+
+  return listen(MODBUS_REQUEST_WRITE_SINGLE);
+}
+
+void FlowMeter::serial_write(uint8_t *buffer, uint8_t len)
+{
+#ifdef DEBUG
+  Serial.println("Wrote:");
+#endif
+  for (uint8_t i = 0; i < len; i++)
+  {
+    _serial->write(buffer[i]);
+#ifdef DEBUG
+    Serial.printf("%02X", buffer[i]);
+#endif
+  }
+#ifdef DEBUG
+  Serial.println();
+#endif
+}
+
+uint8_t FlowMeter::listen(uint8_t request_type)
+{
+#ifdef DEBUG
+  Serial.println("Received:");
+#endif
+  uint8_t received_data_count = 0;
+  uint8_t received_data = 0;
+  uint8_t remaining_data_length = 0;
+  uint8_t data_idx = 0;
+  uint8_t status = 1; // OK
+
+  /* Clear RX buffer before getting data */
+  memset(rx_buffer, 0, MODBUS_RX_BUFFER_SIZE);
+
+  uint64_t last_byte_time_ms = millis();
+
+  while (((millis() - last_byte_time_ms) <= MODBUS_RX_TIMEOUT_MS))
+  {
+    if (_serial->available())
+    {
+      received_data = _serial->read();
+      received_data_count++;
+      last_byte_time_ms = millis();
+#ifdef DEBUG
+      Serial.printf("%02X,", received_data);
+#endif
+      switch (received_data_count)
+      {
+      case 1:  // Slave device ID in first position (Removed ID check)
+        break;
+      case 2:  // Request type echo in second position
+        if (received_data != request_type) status = 0; // Error
+        break;
+      case 3:  // Remaining data length in third position if reading registers (bytes, +2 CRC checksum bytes)
+        remaining_data_length = request_type == MODBUS_REQUEST_READ_HOLDING ? received_data + 2 : MODBUS_RX_BUFFER_SIZE;
+        break;
+      default:
+        rx_buffer[data_idx++] = received_data;
+        // IF status OK, consume all remaining data
+        if (status) remaining_data_length--;
+        // ELSE consume until timeout
+        break;
+      }
+      // IF received all data stop listening RX line
+      if ((data_idx > 0) && (remaining_data_length == 0))
+        break;
+    }
+  }
+#ifdef DEBUG
+  Serial.println();
+#endif
+  return status;
+}
+
+uint16_t FlowMeter::CRC(uint8_t *buf, uint8_t len)
+{
+  uint8_t hi, lo, i;
+  uint16_t crc = 0xFFFF;
+  for (i = 0; i < len; i++)
+  {
+    uint8_t j, chk;
+    crc = crc ^ *buf;
+    for (j = 0; j < 8; j++)
+    {
+      chk = (uint8_t)(crc & 1);
+      crc = crc >> 1;
+      crc = crc & 0x7fff;
+      if (chk == 1)
+        crc = crc ^ 0xa001;
+      crc = crc & 0xffff;
+    }
+    buf++;
+  }
+  hi = (uint8_t)(crc % 256);
+  lo = (uint8_t)(crc / 256);
+  crc = (((uint16_t)(hi)) << 8) | lo;
+  return crc;
+}
