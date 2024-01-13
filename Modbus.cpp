@@ -59,6 +59,28 @@ uint8_t Modbus::readHolding(uint8_t address, uint8_t read_count)
   return listen(MODBUS_REQUEST_READ_HOLDING);
 }
 
+uint8_t Modbus::readInput(uint8_t address, uint8_t read_count)
+{
+  /* Initialize TX buffer for read request */
+  init_transfer(MODBUS_REQUEST_READ_INPUT, address);
+
+  /* Number of registers to read */
+  _tx_buffer[5] = read_count;
+
+  /* Compute CRC16 code from current tx_buffer data */
+  CRC_CODE crc;
+  crc.word = calculate_crc(_tx_buffer, 6);
+
+  /* Place CRC16 code into tx_buffer */
+  _tx_buffer[6] = crc.byte[1];
+  _tx_buffer[7] = crc.byte[0];
+
+  /* Send request command to slave device over UART */
+  serial_write(_tx_buffer, 8);
+
+  return listen(MODBUS_REQUEST_READ_INPUT);
+}
+
 uint8_t Modbus::writeSingle(uint8_t address, uint8_t data)
 {
   /* Initialize TX buffer for write request */
@@ -156,7 +178,7 @@ uint8_t Modbus::listen(uint8_t request_type)
           status = 0; // Error
         break;
       case 3: // Remaining data length in third position if reading registers (bytes, +2 CRC checksum bytes)
-        remaining_data_length = request_type == MODBUS_REQUEST_READ_HOLDING ? received_data + 2 : MODBUS_RX_BUFFER_SIZE;
+        remaining_data_length = request_type <= MODBUS_REQUEST_READ_INPUT ? received_data + 2 : MODBUS_RX_BUFFER_SIZE;
         break;
       default:
         _rx_buffer[data_idx++] = received_data;

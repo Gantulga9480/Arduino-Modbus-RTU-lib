@@ -3,6 +3,7 @@
 #include <HardwareSerial.h>
 
 #define MODBUS_REQUEST_READ_HOLDING   0x03
+#define MODBUS_REQUEST_READ_INPUT     0x04
 #define MODBUS_REQUEST_WRITE_SINGLE   0x06
 #define MODBUS_REQUEST_WRITE_MULTIPLE 0x10
 
@@ -35,6 +36,7 @@ public:
 
     void begin(uint32_t baudrate);
     uint8_t readHolding(uint8_t address, uint8_t read_count);
+    uint8_t readInput(uint8_t address, uint8_t read_count);
     uint8_t writeSingle(uint8_t address, uint8_t data);
     uint8_t writeMultiple(uint8_t address, uint8_t *data, uint8_t write_count);
     uint32_t parseRX(uint8_t index, uint8_t size);
