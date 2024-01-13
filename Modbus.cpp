@@ -194,6 +194,9 @@ uint8_t Modbus::listen(uint8_t request_type)
     }
   }
   MODBUS_DEBUG_PRINT("\n");
+
+  if (received_data_count == 0)
+    status = 0;  // Read nothing within MODBUS_RX_TIMEOUT_MS
   return status;
 }
 
