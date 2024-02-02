@@ -59,6 +59,28 @@ uint8_t Modbus::readHolding(uint8_t address, uint8_t read_count)
   return listen(MODBUS_REQUEST_READ_HOLDING);
 }
 
+uint8_t Modbus::readInput(uint8_t address, uint8_t read_count)
+{
+  /* Initialize TX buffer for read request */
+  init_transfer(MODBUS_REQUEST_READ_INPUT, address);
+
+  /* Number of registers to read */
+  _tx_buffer[5] = read_count;
+
+  /* Compute CRC16 code from current tx_buffer data */
+  CRC_CODE crc;
+  crc.word = calculate_crc(_tx_buffer, 6);
+
+  /* Place CRC16 code into tx_buffer */
+  _tx_buffer[6] = crc.byte[1];
+  _tx_buffer[7] = crc.byte[0];
+
+  /* Send request command to slave device over UART */
+  serial_write(_tx_buffer, 8);
+
+  return listen(MODBUS_REQUEST_READ_INPUT);
+}
+
 uint8_t Modbus::writeSingle(uint8_t address, uint8_t data)
 {
   /* Initialize TX buffer for write request */
@@ -81,15 +103,47 @@ uint8_t Modbus::writeSingle(uint8_t address, uint8_t data)
   return listen(MODBUS_REQUEST_WRITE_SINGLE);
 }
 
+uint8_t Modbus::writeMultiple(uint8_t address, uint8_t *data, uint8_t write_count)
+{
+  /* Initialize TX buffer for write request */
+  init_transfer(MODBUS_REQUEST_WRITE_MULTIPLE, address);
+
+  /* Number of registers to write */
+  _tx_buffer[5] = write_count;
+
+  /* Data length */
+  _tx_buffer[6] = write_count * 2;
+
+  /* Write data to TX buffer */
+  uint8_t i = 0;
+  for (; i < write_count * 2; i++)
+  {
+    _tx_buffer[i + 7] = data[i];
+  }
+
+  /* Compute CRC16 code from current tx_buffer data */
+  CRC_CODE crc;
+  crc.word = calculate_crc(_tx_buffer, i + 7);
+
+  /* Place CRC16 code into tx_buffer */
+  _tx_buffer[7 + i] = crc.byte[1];
+  _tx_buffer[8 + i] = crc.byte[0];
+
+  /* Send request command to slave device over UART */
+  serial_write(_tx_buffer, 9 + i);
+
+  return listen(MODBUS_REQUEST_WRITE_MULTIPLE);
+}
+
 void Modbus::serial_write(uint8_t *buffer, uint8_t len)
 {
-  DEBUG_PRINT("TX >>");
+  MODBUS_DEBUG_PRINT("TX >> ");
   for (uint8_t i = 0; i < len; i++)
   {
     _serial->write(buffer[i]);
-    DEBUG_PRINT("%02X ", buffer[i]);
+    MODBUS_DEBUG_PRINT("%02X ", buffer[i]);
   }
-  DEBUG_PRINT("\n");
+  MODBUS_DEBUG_PRINT("\n");
 }
 
 uint8_t Modbus::listen(uint8_t request_type)
@@ -100,7 +154,7 @@ uint8_t Modbus::listen(uint8_t request_type)
   uint8_t data_idx = 0;
   uint8_t status = 1; // OK
 
-  DEBUG_PRINT("RX <<");
+  MODBUS_DEBUG_PRINT("RX << ");
 
   /* Clear RX buffer before getting data */
   memset(_rx_buffer, 0, MODBUS_RX_BUFFER_SIZE);
@@ -114,7 +168,7 @@ uint8_t Modbus::listen(uint8_t request_type)
       received_data = _serial->read();
       received_data_count++;
       last_byte_time_ms = millis();
-      DEBUG_PRINT("%02X ", received_data);
+      MODBUS_DEBUG_PRINT("%02X ", received_data);
       switch (received_data_count)
       {
       case 1: // Slave device ID in first position (Removed ID check)
@@ -124,7 +178,7 @@ uint8_t Modbus::listen(uint8_t request_type)
           status = 0; // Error
         break;
       case 3: // Remaining data length in third position if reading registers (bytes, +2 CRC checksum bytes)
-        remaining_data_length = request_type == MODBUS_REQUEST_READ_HOLDING ? received_data + 2 : MODBUS_RX_BUFFER_SIZE;
+        remaining_data_length = request_type <= MODBUS_REQUEST_READ_INPUT ? received_data + 2 : MODBUS_RX_BUFFER_SIZE;
         break;
       default:
         _rx_buffer[data_idx++] = received_data;
@@ -139,7 +193,10 @@ uint8_t Modbus::listen(uint8_t request_type)
         break;
     }
   }
-  DEBUG_PRINT("\n");
+  MODBUS_DEBUG_PRINT("\n");
+
+  if (received_data_count == 0)
+    status = 0;  // Read nothing within MODBUS_RX_TIMEOUT_MS
   return status;
 }
 
