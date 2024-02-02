@@ -2,8 +2,6 @@
 #define __MODBUS__
 #include <HardwareSerial.h>
 
-// #define DEBUG
-
 #define MODBUS_REQUEST_READ_HOLDING 0x03
 #define MODBUS_REQUEST_WRITE_SINGLE 0x06
 

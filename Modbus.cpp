@@ -1,7 +1,5 @@
 #include "Modbus.h"
 
-#define DEBUG
-
 Modbus::Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, bool crc)
     : ID(id), _serial(serial), _rx(rx), _tx(tx), _crc(crc)
 {
