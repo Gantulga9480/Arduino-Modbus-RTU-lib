@@ -118,7 +118,7 @@ uint8_t Modbus::writeMultiple(uint8_t address, uint8_t *data, uint8_t write_coun
   uint8_t i = 0;
   for (; i < write_count * 2; i++)
   {
-    _tx_buffer[i + 7] = data[i];
+    _tx_buffer[i + 7] = data[write_count * 2 - 1 - i];
   }
 
   /* Compute CRC16 code from current tx_buffer data */
@@ -196,7 +196,7 @@ uint8_t Modbus::listen(uint8_t request_type)
   MODBUS_DEBUG_PRINT("\n");
 
   if (received_data_count == 0)
-    status = 0;  // Read nothing within MODBUS_RX_TIMEOUT_MS
+    status = 0; // Read nothing within MODBUS_RX_TIMEOUT_MS
   return status;
 }
 
