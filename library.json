@@ -1,0 +1,16 @@
+{
+    "name": "Arduino Modbus-RTU lib",
+    "version": "1.0.0",
+    "description": "Arduino based Modbus-RTU lib over uart connection.",
+    "keywords": "arduin, modbus, uart, serial, rs232, rs485",
+    "authors":
+    [
+      {
+        "name": "Gantulga G",
+        "email": "limited.tulgaa@gmail.com"
+      }
+    ],
+    "license": "MIT",
+    "frameworks": "Arduino",
+    "platforms": "*"
+  }
