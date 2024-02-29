@@ -10,7 +10,7 @@
         "email": "limited.tulgaa@gmail.com"
       }
     ],
-    "license": "MIT",
+    "license": "Apache 2.0",
     "frameworks": "Arduino",
     "platforms": "*"
   }
