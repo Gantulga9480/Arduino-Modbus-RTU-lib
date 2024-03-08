@@ -163,7 +163,7 @@ uint8_t Modbus::listen(uint8_t request_type)
 
   while (((millis() - last_byte_time_ms) <= MODBUS_RX_TIMEOUT_MS))
   {
-    if (_serial->available())
+    while (_serial->available())
     {
       received_data = _serial->read();
       received_data_count++;
@@ -192,6 +192,7 @@ uint8_t Modbus::listen(uint8_t request_type)
       if ((data_idx > 0) && (remaining_data_length == 0))
         break;
     }
+    delay(1);  // task yield
   }
   MODBUS_DEBUG_PRINT("\n");
 
