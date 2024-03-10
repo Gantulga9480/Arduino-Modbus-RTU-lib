@@ -13,7 +13,7 @@
 #define MODBUS_RX_TIMEOUT_MS 5000
 
 #ifdef MODBUS_DEBUG
-#define MODBUS_DEBUG_PRINT(...) Serial.printf(__VA_ARGS__)
+#define MODBUS_DEBUG_PRINT(...) USBSerial.printf(__VA_ARGS__)
 #else
 #define MODBUS_DEBUG_PRINT(...) \
     do                          \
@@ -31,7 +31,7 @@ union CRC_CODE
 class Modbus
 {
 public:
-    Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, bool crc = false);
+    Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, int8_t de = -1, bool crc = false);
     ~Modbus();
 
     void begin(uint32_t baudrate);
@@ -49,13 +49,14 @@ protected:
 
 public:
     uint8_t ID = 1;
-    uint8_t _rx_buffer[MODBUS_RX_BUFFER_SIZE];
-    uint8_t _tx_buffer[MODBUS_TX_BUFFER_SIZE];
 
 protected:
     HardwareSerial *_serial;
+    bool _crc = false;
     uint8_t _rx = 0;
     uint8_t _tx = 0;
-    bool _crc = false;
+    int8_t _de = -1;
+    uint8_t _rx_buffer[MODBUS_RX_BUFFER_SIZE];
+    uint8_t _tx_buffer[MODBUS_TX_BUFFER_SIZE];
 };
 #endif

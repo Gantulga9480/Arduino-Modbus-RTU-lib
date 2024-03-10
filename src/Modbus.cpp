@@ -1,7 +1,7 @@
 #include "Modbus.h"
 
-Modbus::Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, bool crc)
-    : ID(id), _serial(serial), _rx(rx), _tx(tx), _crc(crc)
+Modbus::Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, int8_t de, bool crc)
+    : ID(id), _serial(serial), _rx(rx), _tx(tx), _de(de), _crc(crc)
 {
 }
 
@@ -137,11 +137,18 @@ uint8_t Modbus::writeMultiple(uint8_t address, uint8_t *data, uint8_t write_coun
 
 void Modbus::serial_write(uint8_t *buffer, uint8_t len)
 {
-  MODBUS_DEBUG_PRINT("TX >> ");
+  MODBUS_DEBUG_PRINT("RTU:TX >> ");
+  if (_de > -1)
+    digitalWrite(_de, HIGH);
   for (uint8_t i = 0; i < len; i++)
   {
     _serial->write(buffer[i]);
     MODBUS_DEBUG_PRINT("%02X ", buffer[i]);
+  }
+  if (_de > -1)
+  {
+    _serial->flush();
+    digitalWrite(_de, LOW);
   }
   MODBUS_DEBUG_PRINT("\n");
 }
@@ -154,7 +161,7 @@ uint8_t Modbus::listen(uint8_t request_type)
   uint8_t data_idx = 0;
   uint8_t status = 1; // OK
 
-  MODBUS_DEBUG_PRINT("RX << ");
+  MODBUS_DEBUG_PRINT("RTU:RX << ");
 
   /* Clear RX buffer before getting data */
   memset(_rx_buffer, 0, MODBUS_RX_BUFFER_SIZE);
@@ -192,7 +199,11 @@ uint8_t Modbus::listen(uint8_t request_type)
       if ((data_idx > 0) && (remaining_data_length == 0))
         break;
     }
-    delay(1);  // task yield
+    // IF received all data stop listening RX line
+    if ((data_idx > 0) && (remaining_data_length == 0))
+      break;
+    else
+      delay(1);  // task yield
   }
   MODBUS_DEBUG_PRINT("\n");
 
