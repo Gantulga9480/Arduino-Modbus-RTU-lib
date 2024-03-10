@@ -13,7 +13,7 @@
 #define MODBUS_RX_TIMEOUT_MS 5000
 
 #ifdef MODBUS_DEBUG
-#define MODBUS_DEBUG_PRINT(...) USBSerial.printf(__VA_ARGS__)
+#define MODBUS_DEBUG_PRINT(...) Serial.printf(__VA_ARGS__)
 #else
 #define MODBUS_DEBUG_PRINT(...) \
     do                          \
