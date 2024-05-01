@@ -1,7 +1,7 @@
 #include "Modbus.h"
 
-Modbus::Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, int8_t de, bool crc)
-    : ID(id), _serial(serial), _rx(rx), _tx(tx), _de(de), _crc(crc)
+Modbus::Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, int8_t de, int8_t re, bool crc)
+    : ID(id), _serial(serial), _rx(rx), _tx(tx), _de(de), _re(re), _crc(crc)
 {
 }
 
@@ -13,6 +13,10 @@ Modbus::~Modbus()
 void Modbus::begin(uint32_t baudrate)
 {
   _serial->begin(baudrate, SERIAL_8N1, _rx, _tx);
+  if (_de > -1)
+    pinMode(_de, OUTPUT);
+  if (_re > -1)
+    pinMode(_re, OUTPUT);
 }
 
 uint32_t Modbus::parseRX(uint8_t index, uint8_t size)
@@ -24,20 +28,20 @@ uint32_t Modbus::parseRX(uint8_t index, uint8_t size)
   return value;
 }
 
-void Modbus::init_transfer(uint8_t request_type, uint8_t address)
+void Modbus::init_transfer(uint8_t request_type, uint16_t address)
 {
   /* Clear TX buffer */
-  memset(_tx_buffer, 0, MODBUS_REQUEST_READ_HOLDING);
+  memset(_tx_buffer, 0, 40);
 
   /* Set slave ID and request type */
   _tx_buffer[0] = ID;
   _tx_buffer[1] = request_type; // Read or write
-  _tx_buffer[2] = 0x00;         // Reserved always 0x00
-  _tx_buffer[3] = address;      // Requested address to read/write
+  _tx_buffer[2] = address >> 8; // Requested address to read/write high byte
+  _tx_buffer[3] = address;      // Requested address to read/write low byte
   _tx_buffer[4] = 0x00;         // Reserved always 0x00
 }
 
-uint8_t Modbus::readHolding(uint8_t address, uint8_t read_count)
+uint8_t Modbus::readHolding(uint16_t address, uint8_t read_count)
 {
   /* Initialize TX buffer for read request */
   init_transfer(MODBUS_REQUEST_READ_HOLDING, address);
@@ -59,7 +63,7 @@ uint8_t Modbus::readHolding(uint8_t address, uint8_t read_count)
   return listen(MODBUS_REQUEST_READ_HOLDING);
 }
 
-uint8_t Modbus::readInput(uint8_t address, uint8_t read_count)
+uint8_t Modbus::readInput(uint16_t address, uint8_t read_count)
 {
   /* Initialize TX buffer for read request */
   init_transfer(MODBUS_REQUEST_READ_INPUT, address);
@@ -81,7 +85,7 @@ uint8_t Modbus::readInput(uint8_t address, uint8_t read_count)
   return listen(MODBUS_REQUEST_READ_INPUT);
 }
 
-uint8_t Modbus::writeSingle(uint8_t address, uint8_t data)
+uint8_t Modbus::writeSingle(uint16_t address, uint8_t data)
 {
   /* Initialize TX buffer for write request */
   init_transfer(MODBUS_REQUEST_WRITE_SINGLE, address);
@@ -103,7 +107,7 @@ uint8_t Modbus::writeSingle(uint8_t address, uint8_t data)
   return listen(MODBUS_REQUEST_WRITE_SINGLE);
 }
 
-uint8_t Modbus::writeMultiple(uint8_t address, uint8_t *data, uint8_t write_count)
+uint8_t Modbus::writeMultiple(uint16_t address, uint8_t *data, uint8_t write_count)
 {
   /* Initialize TX buffer for write request */
   init_transfer(MODBUS_REQUEST_WRITE_MULTIPLE, address);
@@ -137,20 +141,22 @@ uint8_t Modbus::writeMultiple(uint8_t address, uint8_t *data, uint8_t write_coun
 
 void Modbus::serial_write(uint8_t *buffer, uint8_t len)
 {
-  MODBUS_DEBUG_PRINT("RTU:TX >> ");
   if (_de > -1)
     digitalWrite(_de, HIGH);
+  if (_re > -1)
+    digitalWrite(_re, HIGH);
+  MODBUS_DEBUG_PRINT("RTU:TX >> ");
   for (uint8_t i = 0; i < len; i++)
   {
     _serial->write(buffer[i]);
     MODBUS_DEBUG_PRINT("%02X ", buffer[i]);
   }
-  if (_de > -1)
-  {
-    _serial->flush();
-    digitalWrite(_de, LOW);
-  }
   MODBUS_DEBUG_PRINT("\n");
+  _serial->flush();
+  if (_de > -1)
+    digitalWrite(_de, LOW);
+  if (_re > -1)
+    digitalWrite(_re, LOW);
 }
 
 uint8_t Modbus::listen(uint8_t request_type)

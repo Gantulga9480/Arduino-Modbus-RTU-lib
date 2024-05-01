@@ -31,18 +31,18 @@ union CRC_CODE
 class Modbus
 {
 public:
-    Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, int8_t de = -1, bool crc = false);
+    Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, int8_t de = -1, int8_t re = -1, bool crc = false);
     ~Modbus();
 
     void begin(uint32_t baudrate);
-    uint8_t readHolding(uint8_t address, uint8_t read_count);
-    uint8_t readInput(uint8_t address, uint8_t read_count);
-    uint8_t writeSingle(uint8_t address, uint8_t data);
-    uint8_t writeMultiple(uint8_t address, uint8_t *data, uint8_t write_count);
+    uint8_t readHolding(uint16_t address, uint8_t read_count);
+    uint8_t readInput(uint16_t address, uint8_t read_count);
+    uint8_t writeSingle(uint16_t address, uint8_t data);
+    uint8_t writeMultiple(uint16_t address, uint8_t *data, uint8_t write_count);
     uint32_t parseRX(uint8_t index, uint8_t size);
 
 protected:
-    void init_transfer(uint8_t request_type, uint8_t address);
+    void init_transfer(uint8_t request_type, uint16_t address);
     void serial_write(uint8_t *buffer, uint8_t len);
     uint16_t calculate_crc(uint8_t *buf, uint8_t len);
     uint8_t listen(uint8_t request_type);
@@ -56,6 +56,7 @@ protected:
     uint8_t _rx = 0;
     uint8_t _tx = 0;
     int8_t _de = -1;
+    int8_t _re = -1;
     uint8_t _rx_buffer[MODBUS_RX_BUFFER_SIZE];
     uint8_t _tx_buffer[MODBUS_TX_BUFFER_SIZE];
 };
