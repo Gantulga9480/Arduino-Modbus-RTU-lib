@@ -22,9 +22,9 @@ void Modbus::begin(uint32_t baudrate)
 uint32_t Modbus::parseRX(uint8_t index, uint8_t size)
 {
   uint32_t value = 0;
-  uint8_t i = 0;
-  for (; i < size; i++)
-    value |= (_rx_buffer[i + index] << (8 * (size - (i + 1))));
+  uint8_t i = 3;
+  for (; i < (size + 3); i++)
+    value |= (_rx_buffer[i + index] << (8 * (size - (i + 1 - 3))));
   return value;
 }
 
@@ -162,7 +162,6 @@ void Modbus::serial_write(uint8_t *buffer, uint8_t len)
 uint8_t Modbus::listen(uint8_t request_type)
 {
   uint8_t received_data = 0;
-  uint8_t received_data_count = 0;
   uint8_t remaining_data_length = 0;
   uint8_t data_idx = 0;
   uint8_t status = 1; // OK
@@ -176,13 +175,13 @@ uint8_t Modbus::listen(uint8_t request_type)
 
   while (((millis() - last_byte_time_ms) <= MODBUS_RX_TIMEOUT_MS))
   {
-    while (_serial->available())
+    if (_serial->available())
     {
       received_data = _serial->read();
-      received_data_count++;
+      _rx_buffer[data_idx++] = received_data;
       last_byte_time_ms = millis();
       MODBUS_DEBUG_PRINT("%02X ", received_data);
-      switch (received_data_count)
+      switch (data_idx)
       {
       case 1: // Slave device ID in first position (Removed ID check)
         break;
@@ -194,27 +193,47 @@ uint8_t Modbus::listen(uint8_t request_type)
         remaining_data_length = request_type <= MODBUS_REQUEST_READ_INPUT ? received_data + 2 : MODBUS_RX_BUFFER_SIZE;
         break;
       default:
-        _rx_buffer[data_idx++] = received_data;
         // IF status OK, consume all remaining data
-        if (status)
-          remaining_data_length--;
         // ELSE consume until timeout
         break;
       }
-      // IF received all data stop listening RX line
-      if ((data_idx > 0) && (remaining_data_length == 0))
-        break;
     }
     // IF received all data stop listening RX line
-    if ((data_idx > 0) && (remaining_data_length == 0))
+    if (data_idx == remaining_data_length + 3)
       break;
-    else
-      delay(1);  // task yield
+
+    // IF RX buffer is full stop listening RX line
+    if (data_idx == MODBUS_RX_BUFFER_SIZE)
+      break;
+
+    // ELSE yield current task
+    delay(1);
   }
   MODBUS_DEBUG_PRINT("\n");
 
-  if (received_data_count <  3)
+  if (data_idx <  3)
     status = 0; // Read nothing within MODBUS_RX_TIMEOUT_MS
+
+  if (status)
+  {
+    CRC_CODE received_crc;
+    received_crc.byte[1] = _rx_buffer[data_idx - 2];
+    received_crc.byte[0] = _rx_buffer[data_idx - 1];
+
+    CRC_CODE computed_crc;
+    computed_crc.word = calculate_crc(_rx_buffer, data_idx - 2);
+    // MODBUS_DEBUG_PRINT("RTU:CRC computed %04X\n", computed_crc.word);
+    // MODBUS_DEBUG_PRINT("RTU:CRC received %04X\n", received_crc.word);
+
+    if (received_crc.word != computed_crc.word)
+    {
+      MODBUS_DEBUG_PRINT("RTU:CRC CHECK FAILED!\n");
+      status = 0;
+    }
+    // else
+    //   MODBUS_DEBUG_PRINT("RTU:CRC CHECK SUCCESS!\n");
+  }
+
   return status;
 }
 
