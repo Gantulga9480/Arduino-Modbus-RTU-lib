@@ -38,7 +38,6 @@ void Modbus::init_transfer(uint8_t request_type, uint16_t address)
   _tx_buffer[1] = request_type; // Read or write
   _tx_buffer[2] = address >> 8; // Requested address to read/write high byte
   _tx_buffer[3] = address;      // Requested address to read/write low byte
-  _tx_buffer[4] = 0x00;         // Reserved always 0x00
 }
 
 uint8_t Modbus::readHolding(uint16_t address, uint8_t read_count)
@@ -47,6 +46,7 @@ uint8_t Modbus::readHolding(uint16_t address, uint8_t read_count)
   init_transfer(MODBUS_REQUEST_READ_HOLDING, address);
 
   /* Number of registers to read */
+  _tx_buffer[4] = 0;
   _tx_buffer[5] = read_count;
 
   /* Compute CRC16 code from current tx_buffer data */
@@ -69,6 +69,7 @@ uint8_t Modbus::readInput(uint16_t address, uint8_t read_count)
   init_transfer(MODBUS_REQUEST_READ_INPUT, address);
 
   /* Number of registers to read */
+  _tx_buffer[4] = 0;
   _tx_buffer[5] = read_count;
 
   /* Compute CRC16 code from current tx_buffer data */
@@ -85,13 +86,14 @@ uint8_t Modbus::readInput(uint16_t address, uint8_t read_count)
   return listen(MODBUS_REQUEST_READ_INPUT);
 }
 
-uint8_t Modbus::writeSingle(uint16_t address, uint8_t data)
+uint8_t Modbus::writeSingle(uint16_t address, uint16_t data)
 {
   /* Initialize TX buffer for write request */
   init_transfer(MODBUS_REQUEST_WRITE_SINGLE, address);
 
   /* A $data byte to write to register at $address */
-  _tx_buffer[5] = data;
+  _tx_buffer[4] = data >> 8; // Data high byte
+  _tx_buffer[5] = data;      // Data low byte
 
   /* Compute CRC16 code from current tx_buffer data */
   CRC_CODE crc;
@@ -113,6 +115,7 @@ uint8_t Modbus::writeMultiple(uint16_t address, uint8_t *data, uint8_t write_cou
   init_transfer(MODBUS_REQUEST_WRITE_MULTIPLE, address);
 
   /* Number of registers to write */
+  _tx_buffer[5] = 0;
   _tx_buffer[5] = write_count;
 
   /* Data length */

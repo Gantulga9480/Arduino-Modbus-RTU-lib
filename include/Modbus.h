@@ -37,7 +37,7 @@ public:
     void begin(uint32_t baudrate);
     uint8_t readHolding(uint16_t address, uint8_t read_count);
     uint8_t readInput(uint16_t address, uint8_t read_count);
-    uint8_t writeSingle(uint16_t address, uint8_t data);
+    uint8_t writeSingle(uint16_t address, uint16_t data);
     uint8_t writeMultiple(uint16_t address, uint8_t *data, uint8_t write_count);
     uint32_t parseRX(uint8_t index, uint8_t size);
 
