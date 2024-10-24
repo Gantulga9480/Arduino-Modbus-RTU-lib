@@ -1,3 +1,19 @@
+/*
+ * File: modbus.h
+ * Author: Gantulga G
+ * Date: Oct 23 2024
+ *
+ * Description:
+ * TODO
+ *
+ * License:
+ * This software is licensed under the Apache 2.0 License. See the LICENSE file
+ * for details.
+ *
+ * Note:
+ * TODO
+ */
+
 #ifndef __MODBUS__
 #define __MODBUS__
 #include <HardwareSerial.h>
@@ -11,15 +27,6 @@
 #define MODBUS_RX_BUFFER_SIZE 100
 
 #define MODBUS_RX_TIMEOUT_MS 5000
-
-#ifdef MODBUS_DEBUG
-#define MODBUS_DEBUG_PRINT(...) Serial.printf(__VA_ARGS__)
-#else
-#define MODBUS_DEBUG_PRINT(...) \
-    do                          \
-    {                           \
-    } while (0)
-#endif
 
 /* CRC type punning union */
 union CRC_CODE

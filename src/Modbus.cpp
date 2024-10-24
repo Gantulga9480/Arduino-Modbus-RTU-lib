@@ -1,4 +1,27 @@
-#include "Modbus.h"
+/*
+ * File: modbus.cpp
+ * Author: Gantulga G
+ * Date: Oct 23 2024
+ *
+ * Description:
+ * TODO
+ *
+ * License:
+ * This software is licensed under the Apache 2.0 License. See the LICENSE file
+ * for details.
+ *
+ * Note:
+ * TODO
+ */
+
+#include "modbus.h"
+#include "debug.h"
+
+#ifdef DEBUG
+#ifdef MODBUS_DEBUG
+#define MODBUS_DEBUG_PRINT(...) DBG(__VA_ARGS__)
+#endif
+#endif
 
 Modbus::Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, int8_t de, int8_t re, bool crc)
     : ID(id), _serial(serial), _rx(rx), _tx(tx), _de(de), _re(re), _crc(crc)
@@ -235,6 +258,11 @@ uint8_t Modbus::listen(uint8_t request_type)
     }
     // else
     //   MODBUS_DEBUG_PRINT("RTU:CRC CHECK SUCCESS!\n");
+  }
+
+  if (!status)
+  {
+    MODBUS_DEBUG_PRINT("RTU:READ FAILED!\n");
   }
 
   return status;
