@@ -19,7 +19,7 @@
 
 #ifdef DEBUG
 #ifdef MODBUS_DEBUG
-#define MODBUS_DEBUG_PRINT(...) DBG(__VA_ARGS__)
+#define MODBUS_DEBUG_PRINT(...) DBG_RAW(__VA_ARGS__)
 #else
 #define MODBUS_DEBUG_PRINT(...) do {} while (0);
 #endif
