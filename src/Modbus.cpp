@@ -15,12 +15,16 @@
  */
 
 #include "modbus.h"
-#include "debug.h"
+#include <debug.h>
 
 #ifdef DEBUG
 #ifdef MODBUS_DEBUG
 #define MODBUS_DEBUG_PRINT(...) DBG(__VA_ARGS__)
+#else
+#define MODBUS_DEBUG_PRINT(...) do {} while (0);
 #endif
+#else
+#define MODBUS_DEBUG_PRINT(...) do {} while (0);
 #endif
 
 Modbus::Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, int8_t de, int8_t re, bool crc)
