@@ -16,7 +16,11 @@
 
 #ifndef __MODBUS__
 #define __MODBUS__
+#ifndef MODBUS_USE_SW_SERIAL
 #include <HardwareSerial.h>
+#else
+#include <SoftwareSerial.h>
+#endif
 
 #define MODBUS_REQUEST_READ_HOLDING 0x03
 #define MODBUS_REQUEST_READ_INPUT 0x04
@@ -38,10 +42,13 @@ union CRC_CODE
 class Modbus
 {
 public:
-    Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, int8_t de = -1, int8_t re = -1, bool crc = false);
+#ifndef MODBUS_USE_SW_SERIAL
+    Modbus(int8_t id, HardwareSerial *serial, int8_t de = -1, int8_t re = -1, bool crc = false);
+#else
+    Modbus(int8_t id, SoftwareSerial *serial, int8_t de = -1, int8_t re = -1, bool crc = false);
+#endif
     ~Modbus();
 
-    void begin(uint32_t baudrate);
     uint8_t readHolding(uint16_t address, uint8_t read_count);
     uint8_t readInput(uint16_t address, uint8_t read_count);
     uint8_t writeSingle(uint16_t address, uint16_t data);
@@ -58,10 +65,12 @@ public:
     uint8_t ID = 1;
 
 protected:
+#ifndef MODBUS_USE_SW_SERIAL
     HardwareSerial *_serial;
+#else
+    SoftwareSerial *_serial;
+#endif
     bool _crc = false;
-    uint8_t _rx = 0;
-    uint8_t _tx = 0;
     int8_t _de = -1;
     int8_t _re = -1;
     uint8_t _rx_buffer[MODBUS_RX_BUFFER_SIZE];

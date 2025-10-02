@@ -15,35 +15,47 @@
  */
 
 #include "modbus.h"
-#include <debug.h>
 
 #ifdef DEBUG
+#include <debug.h>
 #ifdef MODBUS_DEBUG
 #define MODBUS_DEBUG_PRINT(...) DBG_RAW(__VA_ARGS__)
 #else
-#define MODBUS_DEBUG_PRINT(...) do {} while (0);
+#define MODBUS_DEBUG_PRINT(...) \
+  do                            \
+  {                             \
+  } while (0);
 #endif
 #else
-#define MODBUS_DEBUG_PRINT(...) do {} while (0);
+#define MODBUS_DEBUG_PRINT(...) \
+  do                            \
+  {                             \
+  } while (0);
 #endif
 
-Modbus::Modbus(int8_t id, HardwareSerial *serial, int8_t rx, int8_t tx, int8_t de, int8_t re, bool crc)
-    : ID(id), _serial(serial), _rx(rx), _tx(tx), _de(de), _re(re), _crc(crc)
+#ifndef MODBUS_USE_SW_SERIAL
+Modbus::Modbus(int8_t id, HardwareSerial *serial, int8_t de, int8_t re, bool crc)
+    : ID(id), _serial(serial), _de(de), _re(re), _crc(crc)
 {
-}
-
-Modbus::~Modbus()
-{
-  _serial->end();
-}
-
-void Modbus::begin(uint32_t baudrate)
-{
-  _serial->begin(baudrate, SERIAL_8N1, _rx, _tx);
   if (_de > -1)
     pinMode(_de, OUTPUT);
   if (_re > -1)
     pinMode(_re, OUTPUT);
+}
+#else
+Modbus::Modbus(int8_t id, SoftwareSerial *serial, int8_t de = -1, int8_t re = -1, bool crc = false)
+    : ID(id), _serial(serial), _de(de), _re(re), _crc(crc)
+{
+  if (_de > -1)
+    pinMode(_de, OUTPUT);
+  if (_re > -1)
+    pinMode(_re, OUTPUT);
+}
+#endif
+
+Modbus::~Modbus()
+{
+  _serial->end();
 }
 
 uint32_t Modbus::parseRX(uint8_t index, uint8_t size)
@@ -236,12 +248,12 @@ uint8_t Modbus::listen(uint8_t request_type)
     if (data_idx == MODBUS_RX_BUFFER_SIZE)
       break;
 
-    // ELSE yield current task
+    // yield current task
     delay(1);
   }
   MODBUS_DEBUG_PRINT("\n");
 
-  if (data_idx <  3)
+  if (data_idx < 3)
     status = 0; // Read nothing within MODBUS_RX_TIMEOUT_MS
 
   if (status)
@@ -252,16 +264,12 @@ uint8_t Modbus::listen(uint8_t request_type)
 
     CRC_CODE computed_crc;
     computed_crc.word = calculate_crc(_rx_buffer, data_idx - 2);
-    // MODBUS_DEBUG_PRINT("RTU:CRC computed %04X\n", computed_crc.word);
-    // MODBUS_DEBUG_PRINT("RTU:CRC received %04X\n", received_crc.word);
 
     if (received_crc.word != computed_crc.word)
     {
       MODBUS_DEBUG_PRINT("RTU:CRC CHECK FAILED!\n");
       status = 0;
     }
-    // else
-    //   MODBUS_DEBUG_PRINT("RTU:CRC CHECK SUCCESS!\n");
   }
 
   if (!status)
