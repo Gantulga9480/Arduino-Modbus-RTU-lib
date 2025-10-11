@@ -36,22 +36,16 @@
 #ifndef MODBUS_USE_SW_SERIAL
 Modbus::Modbus(int8_t id, HardwareSerial *serial, int8_t de, int8_t re, bool crc)
     : ID(id), _serial(serial), _de(de), _re(re), _crc(crc)
-{
-  if (_de > -1)
-    pinMode(_de, OUTPUT);
-  if (_re > -1)
-    pinMode(_re, OUTPUT);
-}
 #else
-Modbus::Modbus(int8_t id, SoftwareSerial *serial, int8_t de = -1, int8_t re = -1, bool crc = false)
+Modbus::Modbus(int8_t id, SoftwareSerial *serial, int8_t de, int8_t re, bool crc)
     : ID(id), _serial(serial), _de(de), _re(re), _crc(crc)
+    #endif
 {
   if (_de > -1)
     pinMode(_de, OUTPUT);
   if (_re > -1)
     pinMode(_re, OUTPUT);
 }
-#endif
 
 Modbus::~Modbus()
 {
