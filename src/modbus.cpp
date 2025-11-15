@@ -63,7 +63,7 @@ uint32_t Modbus::parseRX(uint8_t index, uint8_t size)
 void Modbus::init_transfer(uint8_t request_type, uint16_t address)
 {
   /* Clear TX buffer */
-  memset(_tx_buffer, 0, 40);
+  memset(_tx_buffer, 0, MODBUS_TX_BUFFER_SIZE);
 
   /* Set slave ID and request type */
   _tx_buffer[0] = ID;
@@ -147,7 +147,7 @@ uint8_t Modbus::writeMultiple(uint16_t address, uint8_t *data, uint8_t write_cou
   init_transfer(MODBUS_REQUEST_WRITE_MULTIPLE, address);
 
   /* Number of registers to write */
-  _tx_buffer[5] = 0;
+  _tx_buffer[4] = 0;
   _tx_buffer[5] = write_count;
 
   /* Data length */
